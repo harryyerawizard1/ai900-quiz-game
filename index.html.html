@@ -1,0 +1,744 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI-900 Knowledge Quest</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@700&display=swap');
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#0a0e1a;--bg2:#111827;--bg3:#1a2035;--surface:#1e293b;
+  --border:#2d3a52;--text:#e2e8f0;--muted:#64748b;--accent:#6366f1;
+  --accent2:#818cf8;--gold:#fbbf24;--green:#34d399;--red:#f87171;
+  --cyan:#22d3ee;--pink:#f472b6;--purple:#a78bfa;
+}
+html,body{height:100%;overflow:hidden}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);display:flex;justify-content:center;align-items:center}
+canvas#bgCanvas{position:fixed;top:0;left:0;width:100%;height:100%;z-index:0;pointer-events:none}
+.app{position:relative;z-index:1;width:100%;max-width:800px;height:100vh;display:flex;flex-direction:column;overflow:hidden}
+
+/* ── SCREENS ── */
+.screen{display:none;flex-direction:column;align-items:center;height:100%;overflow-y:auto;padding:24px}
+.screen.active{display:flex}
+
+/* ── TITLE SCREEN ── */
+.title-logo{margin-top:12vh;margin-bottom:8px;text-align:center}
+.title-logo h1{font-size:2.6rem;font-weight:900;background:linear-gradient(135deg,#6366f1,#22d3ee,#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:-1px;line-height:1.1}
+.title-logo .sub{font-size:1rem;color:var(--muted);font-weight:600;margin-top:6px}
+.title-logo .badge{display:inline-block;margin-top:10px;padding:4px 16px;border-radius:20px;background:rgba(99,102,241,0.15);color:var(--accent2);font-size:0.72rem;font-weight:700;letter-spacing:0.04em;text-transform:uppercase}
+.mode-grid{display:flex;flex-direction:column;gap:14px;width:100%;max-width:400px;margin-top:32px}
+.mode-card{position:relative;background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:20px 22px;cursor:pointer;transition:all .25s;overflow:hidden}
+.mode-card:hover{border-color:var(--accent);transform:translateY(-2px);box-shadow:0 8px 32px rgba(99,102,241,0.15)}
+.mode-card .mode-icon{font-size:1.6rem;margin-bottom:6px}
+.mode-card h3{font-size:1.05rem;font-weight:700;margin-bottom:3px}
+.mode-card p{font-size:0.78rem;color:var(--muted);font-weight:500;line-height:1.45}
+.mode-card .mode-tag{position:absolute;top:12px;right:14px;padding:3px 10px;border-radius:10px;font-size:0.62rem;font-weight:700;text-transform:uppercase;letter-spacing:0.04em}
+.tag-adventure{background:rgba(52,211,153,0.12);color:var(--green)}
+.tag-speed{background:rgba(251,191,36,0.12);color:var(--gold)}
+.tag-survival{background:rgba(248,113,113,0.12);color:var(--red)}
+
+.player-stats{display:flex;gap:20px;margin-top:28px;padding:16px 24px;background:var(--bg2);border:1px solid var(--border);border-radius:14px}
+.pstat{text-align:center}
+.pstat .pval{font-size:1.4rem;font-weight:800;font-family:'JetBrains Mono',monospace}
+.pstat .pval.xp-col{color:var(--accent2)}
+.pstat .pval.lvl-col{color:var(--gold)}
+.pstat .pval.str-col{color:var(--green)}
+.pstat .plbl{font-size:0.65rem;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:0.04em;margin-top:2px}
+
+/* ── MODULE SELECT ── */
+.module-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;width:100%;max-width:440px;margin-top:20px}
+.module-btn{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 16px;cursor:pointer;transition:all .2s;text-align:left}
+.module-btn:hover{border-color:var(--accent);transform:translateY(-1px)}
+.module-btn.locked{opacity:.4;cursor:not-allowed;pointer-events:none}
+.module-btn .m-num{font-size:0.68rem;font-weight:700;color:var(--accent2);text-transform:uppercase;letter-spacing:.04em}
+.module-btn .m-name{font-size:0.78rem;font-weight:600;margin-top:3px;line-height:1.35;color:var(--text)}
+.module-btn .m-prog{font-size:0.65rem;color:var(--muted);margin-top:4px;font-weight:600}
+.module-btn .m-bar{height:3px;background:var(--bg);border-radius:2px;margin-top:6px;overflow:hidden}
+.module-btn .m-fill{height:100%;background:var(--green);border-radius:2px;transition:width .3s}
+.module-btn.completed{border-color:var(--green)}
+.module-btn.completed .m-num{color:var(--green)}
+.back-btn{align-self:flex-start;padding:8px 16px;border-radius:10px;border:1px solid var(--border);background:var(--surface);color:var(--muted);font-size:.78rem;font-weight:600;cursor:pointer;transition:all .2s;margin-bottom:12px}
+.back-btn:hover{border-color:var(--accent);color:var(--text)}
+
+/* ── GAME HUD ── */
+.hud{display:flex;justify-content:space-between;align-items:center;padding:14px 20px;background:var(--bg2);border-bottom:1px solid var(--border);flex-shrink:0}
+.hud-left,.hud-right{display:flex;gap:16px;align-items:center}
+.hud-stat{text-align:center}
+.hud-val{font-size:1.1rem;font-weight:800;font-family:'JetBrains Mono',monospace}
+.hud-lbl{font-size:.58rem;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+.hud-streak{color:var(--gold)}
+.hud-xp{color:var(--accent2)}
+.hud-lives{color:var(--red);font-size:1.1rem;letter-spacing:2px}
+.hud-timer{color:var(--cyan);font-size:1.4rem;font-weight:900;font-family:'JetBrains Mono',monospace}
+.xp-bar{height:4px;background:var(--bg);flex:1;border-radius:2px;margin:0 12px;max-width:120px;overflow:hidden}
+.xp-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--cyan));border-radius:2px;transition:width .4s}
+
+/* ── QUESTION AREA ── */
+.game-body{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;overflow-y:auto}
+.q-category{display:inline-flex;padding:4px 14px;border-radius:12px;font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;margin-bottom:14px}
+.cat-keyterm{background:rgba(99,102,241,.12);color:var(--accent2)}
+.cat-concept{background:rgba(34,211,238,.12);color:var(--cyan)}
+.cat-scenario{background:rgba(251,191,36,.12);color:var(--gold)}
+.cat-examtip{background:rgba(244,114,182,.12);color:var(--pink)}
+.cat-azure{background:rgba(52,211,153,.12);color:var(--green)}
+.q-module{font-size:.72rem;color:var(--muted);font-weight:600;margin-bottom:8px}
+.q-text{font-size:1.18rem;font-weight:600;text-align:center;line-height:1.6;max-width:560px;margin-bottom:28px;min-height:60px}
+.q-progress{font-size:.7rem;color:var(--muted);font-weight:600;margin-bottom:14px}
+
+/* ── ANSWER OPTIONS ── */
+.answers{display:flex;flex-direction:column;gap:10px;width:100%;max-width:520px}
+.answer-btn{position:relative;background:var(--surface);border:2px solid var(--border);border-radius:14px;padding:14px 18px;cursor:pointer;transition:all .2s;font-size:.9rem;font-weight:500;line-height:1.5;text-align:left;color:var(--text);display:flex;align-items:flex-start;gap:12px}
+.answer-btn:hover:not(.disabled){border-color:var(--accent);background:rgba(99,102,241,.06)}
+.answer-btn.disabled{cursor:default;pointer-events:none}
+.answer-btn .a-key{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:8px;background:var(--bg);font-size:.75rem;font-weight:700;color:var(--muted);flex-shrink:0;border:1px solid var(--border);transition:all .2s}
+.answer-btn.correct{border-color:var(--green);background:rgba(52,211,153,.08)}
+.answer-btn.correct .a-key{background:var(--green);color:var(--bg);border-color:var(--green)}
+.answer-btn.wrong{border-color:var(--red);background:rgba(248,113,113,.06)}
+.answer-btn.wrong .a-key{background:var(--red);color:#fff;border-color:var(--red)}
+
+/* ── FEEDBACK ── */
+.feedback{display:none;text-align:center;margin-top:18px;padding:14px 20px;border-radius:12px;font-size:.85rem;font-weight:600;max-width:520px;width:100%;line-height:1.5}
+.feedback.show{display:block;animation:fadeSlide .3s ease}
+.feedback.correct-fb{background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.2);color:var(--green)}
+.feedback.wrong-fb{background:rgba(248,113,113,.06);border:1px solid rgba(248,113,113,.2);color:var(--red)}
+.feedback .fb-answer{color:var(--text);font-weight:500;margin-top:6px;font-size:.82rem}
+
+.next-area{margin-top:18px}
+.next-btn{padding:10px 28px;border-radius:12px;border:none;background:var(--accent);color:#fff;font-size:.88rem;font-weight:700;cursor:pointer;transition:all .2s}
+.next-btn:hover{background:var(--accent2);transform:translateY(-1px)}
+
+/* ── RESULTS ── */
+.results-card{background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:32px;max-width:440px;width:100%;text-align:center;margin-top:4vh}
+.results-card h2{font-size:1.8rem;font-weight:900;margin-bottom:4px}
+.results-card .r-sub{font-size:.88rem;color:var(--muted);font-weight:500;margin-bottom:20px}
+.r-grade{font-size:4rem;font-weight:900;margin:16px 0;font-family:'JetBrains Mono',monospace}
+.r-grade.grade-s{background:linear-gradient(135deg,var(--gold),#f59e0b);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.r-grade.grade-a{color:var(--green)}
+.r-grade.grade-b{color:var(--cyan)}
+.r-grade.grade-c{color:var(--accent2)}
+.r-grade.grade-f{color:var(--red)}
+.r-stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin:20px 0}
+.r-stat{background:var(--bg2);border-radius:12px;padding:14px 10px}
+.r-stat .rv{font-size:1.5rem;font-weight:800;font-family:'JetBrains Mono',monospace}
+.r-stat .rl{font-size:.62rem;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.04em;margin-top:3px}
+.r-xp{margin:16px 0;padding:12px;border-radius:12px;background:rgba(99,102,241,.08);border:1px solid rgba(99,102,241,.15)}
+.r-xp span{font-size:1.2rem;font-weight:800;color:var(--accent2);font-family:'JetBrains Mono',monospace}
+.r-btns{display:flex;gap:10px;margin-top:20px;justify-content:center;flex-wrap:wrap}
+.r-btn{padding:10px 22px;border-radius:12px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:.82rem;font-weight:600;cursor:pointer;transition:all .2s}
+.r-btn:hover{border-color:var(--accent);transform:translateY(-1px)}
+.r-btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+
+/* ── STREAK POPUP ── */
+.streak-popup{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) scale(0);font-size:3rem;font-weight:900;z-index:100;pointer-events:none;text-shadow:0 0 40px rgba(251,191,36,.4)}
+.streak-popup.show{animation:streakPop .8s ease forwards}
+
+/* ── LEVEL UP ── */
+.levelup-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:200;display:none;align-items:center;justify-content:center}
+.levelup-overlay.show{display:flex;animation:fadeIn .3s}
+.levelup-box{text-align:center;animation:scaleIn .4s ease}
+.levelup-box h2{font-size:2.4rem;font-weight:900;color:var(--gold);margin-bottom:4px}
+.levelup-box p{font-size:1rem;color:var(--muted);font-weight:600}
+.levelup-box .lv-num{font-size:5rem;font-weight:900;font-family:'JetBrains Mono',monospace;background:linear-gradient(135deg,var(--gold),#f59e0b);-webkit-background-clip:text;-webkit-text-fill-color:transparent;line-height:1}
+
+/* ── PARTICLES ── */
+.particle{position:fixed;pointer-events:none;z-index:150;border-radius:50%}
+
+/* ── ANIMS ── */
+@keyframes fadeSlide{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+@keyframes streakPop{0%{transform:translate(-50%,-50%) scale(0);opacity:0}30%{transform:translate(-50%,-50%) scale(1.3);opacity:1}100%{transform:translate(-50%,-50%) scale(1) translateY(-60px);opacity:0}}
+@keyframes scaleIn{from{transform:scale(.7);opacity:0}to{transform:scale(1);opacity:1}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+@keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-6px)}40%{transform:translateX(6px)}60%{transform:translateX(-4px)}80%{transform:translateX(4px)}}
+.shake{animation:shake .4s ease}
+
+/* ── SCROLLBAR ── */
+::-webkit-scrollbar{width:6px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+
+/* ── RESPONSIVE ── */
+@media(max-width:600px){
+  .title-logo h1{font-size:2rem}
+  .q-text{font-size:1rem}
+  .module-grid{grid-template-columns:1fr}
+  .r-stats{grid-template-columns:1fr 1fr 1fr}
+  .r-grade{font-size:3rem}
+  .player-stats{gap:14px;padding:12px 16px}
+  .pstat .pval{font-size:1.1rem}
+  .hud{padding:10px 14px}
+}
+</style>
+</head>
+<body>
+<canvas id="bgCanvas"></canvas>
+<div class="app">
+
+<!-- ═══════ TITLE SCREEN ═══════ -->
+<div class="screen active" id="titleScreen">
+  <div class="title-logo">
+    <h1>Knowledge Quest</h1>
+    <div class="sub">AI-900 Azure AI Fundamentals</div>
+    <div class="badge">162 Cards &bull; 14 Modules &bull; 3 Game Modes</div>
+  </div>
+  <div class="player-stats">
+    <div class="pstat"><div class="pval xp-col" id="titleXP">0</div><div class="plbl">Total XP</div></div>
+    <div class="pstat"><div class="pval lvl-col" id="titleLvl">1</div><div class="plbl">Level</div></div>
+    <div class="pstat"><div class="pval str-col" id="titleBest">0</div><div class="plbl">Best Streak</div></div>
+    <div class="pstat"><div class="pval" style="color:var(--cyan)" id="titlePlayed">0</div><div class="plbl">Games</div></div>
+  </div>
+  <div class="mode-grid">
+    <div class="mode-card" onclick="startAdventure()">
+      <span class="mode-tag tag-adventure">14 Zones</span>
+      <div class="mode-icon">&#x1F3D4;&#xFE0F;</div>
+      <h3>Adventure Mode</h3>
+      <p>Journey through 14 module zones. Master each to unlock the next. Progress is saved!</p>
+    </div>
+    <div class="mode-card" onclick="startSpeed()">
+      <span class="mode-tag tag-speed">60 Sec</span>
+      <div class="mode-icon">&#x26A1;</div>
+      <h3>Speed Blitz</h3>
+      <p>60 seconds on the clock. Answer as many as you can. Every correct answer adds 3 seconds!</p>
+    </div>
+    <div class="mode-card" onclick="startSurvival()">
+      <span class="mode-tag tag-survival">3 Lives</span>
+      <div class="mode-icon">&#x1F480;</div>
+      <h3>Survival Mode</h3>
+      <p>Three lives. One wrong answer costs a life. How far can you go before it's game over?</p>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════ MODULE SELECT ═══════ -->
+<div class="screen" id="moduleScreen">
+  <button class="back-btn" onclick="showScreen('titleScreen')">&larr; Back</button>
+  <h2 style="font-size:1.3rem;font-weight:800;margin-bottom:4px">Adventure Mode</h2>
+  <p style="font-size:.78rem;color:var(--muted);font-weight:500;margin-bottom:16px">Select a module zone to study</p>
+  <div class="module-grid" id="moduleGrid"></div>
+</div>
+
+<!-- ═══════ GAME SCREEN ═══════ -->
+<div class="screen" id="gameScreen" style="padding:0">
+  <div class="hud">
+    <div class="hud-left">
+      <div class="hud-stat"><div class="hud-val hud-xp" id="hudXP">0</div><div class="hud-lbl">XP</div></div>
+      <div class="xp-bar"><div class="xp-fill" id="hudXPBar" style="width:0%"></div></div>
+      <div class="hud-stat"><div class="hud-val" style="color:var(--gold)" id="hudLevel">Lv1</div><div class="hud-lbl">Level</div></div>
+    </div>
+    <div class="hud-right">
+      <div class="hud-stat"><div class="hud-val hud-streak" id="hudStreak">0&#x1F525;</div><div class="hud-lbl">Streak</div></div>
+      <div class="hud-stat" id="hudLivesArea"><div class="hud-val hud-lives" id="hudLives">&#x2764;&#xFE0F;&#x2764;&#xFE0F;&#x2764;&#xFE0F;</div><div class="hud-lbl">Lives</div></div>
+      <div class="hud-stat" id="hudTimerArea" style="display:none"><div class="hud-timer" id="hudTimer">60</div><div class="hud-lbl">Seconds</div></div>
+    </div>
+  </div>
+  <div class="game-body" id="gameBody">
+    <div class="q-progress" id="qProgress">Question 1 of 10</div>
+    <span class="q-category cat-keyterm" id="qCategory">Key Term</span>
+    <div class="q-module" id="qModule">Module 1 — Introduction to AI Concepts</div>
+    <div class="q-text" id="qText">Loading question...</div>
+    <div class="answers" id="answersArea"></div>
+    <div class="feedback" id="feedback"></div>
+    <div class="next-area" id="nextArea" style="display:none">
+      <button class="next-btn" id="nextBtn" onclick="nextQuestion()">Next Question &rarr;</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════ RESULTS ═══════ -->
+<div class="screen" id="resultsScreen">
+  <div class="results-card">
+    <h2 id="rTitle">Round Complete!</h2>
+    <div class="r-sub" id="rSub">Adventure Mode — Module 1</div>
+    <div class="r-grade grade-a" id="rGrade">A</div>
+    <div class="r-stats">
+      <div class="r-stat"><div class="rv" style="color:var(--green)" id="rCorrect">0</div><div class="rl">Correct</div></div>
+      <div class="r-stat"><div class="rv" style="color:var(--red)" id="rWrong">0</div><div class="rl">Wrong</div></div>
+      <div class="r-stat"><div class="rv" style="color:var(--gold)" id="rStreak">0</div><div class="rl">Best Streak</div></div>
+    </div>
+    <div class="r-xp">XP Earned: <span id="rXP">+0</span></div>
+    <div class="r-btns">
+      <button class="r-btn" onclick="showScreen('titleScreen')">&#x1F3E0; Home</button>
+      <button class="r-btn" id="rRetry" onclick="retryRound()">&#x1F504; Retry</button>
+      <button class="r-btn primary" id="rNext" onclick="nextZone()">Next Zone &rarr;</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════ STREAK POPUP ═══════ -->
+<div class="streak-popup" id="streakPopup"></div>
+<!-- ═══════ LEVEL UP ═══════ -->
+<div class="levelup-overlay" id="levelUpOverlay" onclick="closeLevelUp()">
+  <div class="levelup-box">
+    <h2>&#x1F31F; LEVEL UP! &#x1F31F;</h2>
+    <div class="lv-num" id="lvUpNum">2</div>
+    <p>Keep going, you're on fire!</p>
+  </div>
+</div>
+</div>
+
+<script>
+// ═══════════════════════════════════════
+// DATA
+// ═══════════════════════════════════════
+const ALL_CARDS = [{"module": 1, "moduleName": "Introduction to AI Concepts", "category": "Key Term", "front": "What is Artificial Intelligence (AI)?", "back": "Software that mimics human cognitive capabilities such as perception, learning, reasoning, and decision-making."}, {"module": 1, "moduleName": "Introduction to AI Concepts", "category": "Key Term", "front": "What is Machine Learning (ML)?", "back": "A subset of AI where systems learn patterns from data rather than being explicitly programmed."}, {"module": 1, "moduleName": "Introduction to AI Concepts", "category": "Key Term", "front": "What is Deep Learning?", "back": "A subset of Machine Learning that uses multi-layered neural networks to learn complex patterns from large amounts of data."}, {"module": 1, "moduleName": "Introduction to AI Concepts", "category": "Concept", "front": "What is the AI Hierarchy?", "back": "AI > Machine Learning > Deep Learning. Each is a nested subset of the one above it."}, {"module": 1, "moduleName": "Introduction to AI Concepts", "category": "Concept", "front": "What is Microsoft's Responsible AI framework?", "back": "A framework of six principles: Fairness, Reliability & Safety, Privacy & Security, Inclusiveness, Transparency, and Accountability."}, {"module": 1, "moduleName": "Introduction to AI Concepts", "category": "Key Term", "front": "What does the Fairness principle mean in Responsible AI?", "back": "AI should treat all groups equitably, without bias based on gender, ethnicity, age, or other characteristics."}, {"module": 1, "moduleName": "Introduction to AI Concepts", "category": "Key Term", "front": "What does Reliability & Safety mean in Responsible AI?", "back": "AI should perform consistently and safely under varied and unexpected conditions."}, {"module": 1, "moduleName": "Introduction to AI Concepts", "category": "Key Term", "front": "What does Privacy & Security mean in Responsible AI?", "back": "AI systems must protect user data and give individuals control over their personal information."}, {"module": 1, "moduleName": "Introduction to AI Concepts", "category": "Key Term", "front": "What does Inclusiveness mean in Responsible AI?", "back": "AI should be accessible to people with disabilities and designed to benefit all users."}, {"module": 1, "moduleName": "Introduction to AI Concepts", "category": "Key Term", "front": "What does Transparency mean in Responsible AI?", "back": "AI behavior should be understandable and explainable to users and stakeholders."}, {"module": 1, "moduleName": "Introduction to AI Concepts", "category": "Key Term", "front": "What does Accountability mean in Responsible AI?", "back": "Humans must maintain oversight and final decision authority over AI systems."}, {"module": 1, "moduleName": "Introduction to AI Concepts", "category": "Key Term", "front": "What is an AI Workload?", "back": "A specific type of task AI can perform, such as vision, language processing, speech recognition, or decision-making."}, {"module": 1, "moduleName": "Introduction to AI Concepts", "category": "Scenario", "front": "An AI system analyzes X-rays to detect abnormalities. What type of AI workload is this?", "back": "Computer Vision workload."}, {"module": 1, "moduleName": "Introduction to AI Concepts", "category": "Scenario", "front": "An AI system analyzes customer reviews for sentiment. What type of AI workload is this?", "back": "Natural Language Processing (NLP) workload."}, {"module": 1, "moduleName": "Introduction to AI Concepts", "category": "Exam Tip", "front": "How broadly is Responsible AI tested on the AI-900 exam?", "back": "Responsible AI is tested across ALL five exam domains \u2014 not just Domain 1. Expect questions in every section."}, {"module": 2, "moduleName": "Get Started with Microsoft Foundry", "category": "Azure Service", "front": "What is Microsoft Foundry?", "back": "A unified platform for building AI applications. It was formerly known as Azure AI Studio."}, {"module": 2, "moduleName": "Get Started with Microsoft Foundry", "category": "Key Term", "front": "What is a Project in Microsoft Foundry?", "back": "A container in Foundry for organizing AI resources, models, data, and deployments."}, {"module": 2, "moduleName": "Get Started with Microsoft Foundry", "category": "Key Term", "front": "What is an Azure Subscription?", "back": "The top-level billing and access container in Azure that holds all your resources."}, {"module": 2, "moduleName": "Get Started with Microsoft Foundry", "category": "Key Term", "front": "What is a Resource Group?", "back": "A logical grouping of related Azure resources, functioning like a folder for organization and management."}, {"module": 2, "moduleName": "Get Started with Microsoft Foundry", "category": "Azure Service", "front": "What are Azure AI Services?", "back": "Pre-built, API-accessible AI capabilities that developers can integrate into applications without building models from scratch."}, {"module": 2, "moduleName": "Get Started with Microsoft Foundry", "category": "Concept", "front": "What is the Azure Resource Hierarchy?", "back": "Subscription \u2192 Resource Group \u2192 Resources. Resources are organized within resource groups, which exist within subscriptions."}, {"module": 2, "moduleName": "Get Started with Microsoft Foundry", "category": "Concept", "front": "What are the three components of an AI application?", "back": "Data + Model + Deployment. You need data to train or ground the model, a model to process information, and a deployment to serve it."}, {"module": 2, "moduleName": "Get Started with Microsoft Foundry", "category": "Exam Tip", "front": "The exam may reference 'Azure AI Studio.' What should you know?", "back": "Azure AI Studio is the former name for Microsoft Foundry. They refer to the same platform."}, {"module": 3, "moduleName": "Introduction to Machine Learning Concepts", "category": "Key Term", "front": "What are Features in machine learning?", "back": "Input variables used by the model to make predictions (also called independent variables or predictors)."}, {"module": 3, "moduleName": "Introduction to Machine Learning Concepts", "category": "Key Term", "front": "What are Labels in machine learning?", "back": "The target value being predicted \u2014 the output or dependent variable the model learns to estimate."}, {"module": 3, "moduleName": "Introduction to Machine Learning Concepts", "category": "Key Term", "front": "What is Training Data?", "back": "The dataset used to teach the model patterns and relationships between features and labels."}, {"module": 3, "moduleName": "Introduction to Machine Learning Concepts", "category": "Key Term", "front": "What is Validation Data?", "back": "Data used during training to tune hyperparameters and prevent overfitting. It is not used to teach the model directly."}, {"module": 3, "moduleName": "Introduction to Machine Learning Concepts", "category": "Key Term", "front": "What is Test Data?", "back": "Data used after training to evaluate model performance on completely unseen examples."}, {"module": 3, "moduleName": "Introduction to Machine Learning Concepts", "category": "Concept", "front": "What is Supervised Learning?", "back": "A type of ML that uses labeled data (features + known labels) to learn a mapping and predict outcomes for new data."}, {"module": 3, "moduleName": "Introduction to Machine Learning Concepts", "category": "Concept", "front": "What is Unsupervised Learning?", "back": "A type of ML that uses unlabeled data to discover hidden patterns, groupings, or structures without predefined outcomes."}, {"module": 3, "moduleName": "Introduction to Machine Learning Concepts", "category": "Concept", "front": "What is Regression?", "back": "A supervised learning task that predicts a continuous numeric value, such as price, temperature, or quantity."}, {"module": 3, "moduleName": "Introduction to Machine Learning Concepts", "category": "Concept", "front": "What is Binary Classification?", "back": "A supervised learning task that predicts one of two classes (e.g., yes/no, spam/not spam, true/false)."}, {"module": 3, "moduleName": "Introduction to Machine Learning Concepts", "category": "Concept", "front": "What is Multiclass Classification?", "back": "A supervised learning task that predicts one of three or more categories (e.g., cat/dog/bird, low/medium/high)."}, {"module": 3, "moduleName": "Introduction to Machine Learning Concepts", "category": "Concept", "front": "What is Clustering?", "back": "An unsupervised learning technique that groups similar data points together without predefined labels."}, {"module": 3, "moduleName": "Introduction to Machine Learning Concepts", "category": "Key Term", "front": "What is K-Means clustering?", "back": "An algorithm where you specify K clusters and it iteratively assigns each data point to the nearest cluster center."}, {"module": 3, "moduleName": "Introduction to Machine Learning Concepts", "category": "Key Term", "front": "What is Overfitting?", "back": "When a model learns the training data too well (including noise), causing it to perform poorly on new, unseen data."}, {"module": 3, "moduleName": "Introduction to Machine Learning Concepts", "category": "Key Term", "front": "What is a Confusion Matrix?", "back": "A table comparing predicted vs. actual classifications, showing true positives, true negatives, false positives, and false negatives."}, {"module": 3, "moduleName": "Introduction to Machine Learning Concepts", "category": "Key Term", "front": "What is MAE (Mean Absolute Error)?", "back": "The average magnitude of prediction errors. Lower is better. Used for regression evaluation."}, {"module": 3, "moduleName": "Introduction to Machine Learning Concepts", "category": "Key Term", "front": "What is MSE (Mean Squared Error)?", "back": "The average of squared prediction errors. Penalizes large errors more heavily than MAE. Lower is better."}, {"module": 3, "moduleName": "Introduction to Machine Learning Concepts", "category": "Key Term", "front": "What is RMSE (Root Mean Squared Error)?", "back": "The square root of MSE. Expressed in the same units as the label, making it more interpretable. Lower is better."}, {"module": 3, "moduleName": "Introduction to Machine Learning Concepts", "category": "Key Term", "front": "What is R-squared (R\u00b2)?", "back": "A metric showing how well the model explains variance in the data. Ranges from 0 to 1; closer to 1 is better."}, {"module": 3, "moduleName": "Introduction to Machine Learning Concepts", "category": "Key Term", "front": "What is Accuracy?", "back": "The percentage of correct predictions overall. Used for classification evaluation."}, {"module": 3, "moduleName": "Introduction to Machine Learning Concepts", "category": "Key Term", "front": "What is Precision?", "back": "Of all positive predictions, how many were actually positive. High precision reduces false positives."}, {"module": 3, "moduleName": "Introduction to Machine Learning Concepts", "category": "Key Term", "front": "What is Recall?", "back": "Of all actual positives, how many did the model correctly identify. High recall reduces false negatives."}, {"module": 3, "moduleName": "Introduction to Machine Learning Concepts", "category": "Key Term", "front": "What is the F1 Score?", "back": "The harmonic mean of precision and recall, providing a single balanced measure of classification performance."}, {"module": 3, "moduleName": "Introduction to Machine Learning Concepts", "category": "Key Term", "front": "What is AUC-ROC?", "back": "Area Under the ROC Curve. Measures classifier quality: 0.5 = random guessing, 1.0 = perfect classifier."}, {"module": 3, "moduleName": "Introduction to Machine Learning Concepts", "category": "Key Term", "front": "What is a Transformer?", "back": "A neural network architecture using self-attention mechanisms. It powers modern Large Language Models (LLMs)."}, {"module": 3, "moduleName": "Introduction to Machine Learning Concepts", "category": "Key Term", "front": "What is a Neural Network?", "back": "A computing model inspired by the structure of the human brain, consisting of interconnected nodes organized in layers."}, {"module": 3, "moduleName": "Introduction to Machine Learning Concepts", "category": "Scenario", "front": "You need to predict units sold next month based on historical data. What ML type is this?", "back": "Regression \u2014 predicting a continuous numeric value."}, {"module": 3, "moduleName": "Introduction to Machine Learning Concepts", "category": "Scenario", "front": "You need to classify emails as spam or not spam. What ML type is this?", "back": "Binary Classification \u2014 predicting one of two classes."}, {"module": 3, "moduleName": "Introduction to Machine Learning Concepts", "category": "Scenario", "front": "You want to group customers by purchasing behavior without predefined categories. What ML type?", "back": "Clustering \u2014 unsupervised grouping of similar data points."}, {"module": 3, "moduleName": "Introduction to Machine Learning Concepts", "category": "Exam Tip", "front": "What should you know about ML metrics on the exam?", "back": "Know which metrics belong to which ML type. The exam WILL mix them up: regression metrics (MAE, MSE, RMSE, R\u00b2) vs. classification metrics (accuracy, precision, recall, F1, AUC-ROC)."}, {"module": 4, "moduleName": "Get Started with ML in Azure", "category": "Azure Service", "front": "What is Azure ML Workspace?", "back": "The central cloud environment for ML experiments, model training, and deployments in Azure."}, {"module": 4, "moduleName": "Get Started with ML in Azure", "category": "Azure Service", "front": "What is AutoML?", "back": "Automated Machine Learning \u2014 automatically selects algorithms and tunes hyperparameters. You provide data and task type."}, {"module": 4, "moduleName": "Get Started with ML in Azure", "category": "Key Term", "front": "What is an Endpoint in Azure ML?", "back": "A URL through which deployed models receive requests and respond with predictions."}, {"module": 4, "moduleName": "Get Started with ML in Azure", "category": "Key Term", "front": "What is Feature Engineering?", "back": "The process of creating or transforming input variables to improve model performance and prediction accuracy."}, {"module": 4, "moduleName": "Get Started with ML in Azure", "category": "Key Term", "front": "What is Inference?", "back": "Using a trained model to make predictions on new, unseen data in a production environment."}, {"module": 4, "moduleName": "Get Started with ML in Azure", "category": "Key Term", "front": "What is a Compute Instance?", "back": "A single VM for development and testing \u2014 essentially a personal workstation in the cloud."}, {"module": 4, "moduleName": "Get Started with ML in Azure", "category": "Key Term", "front": "What is a Compute Cluster?", "back": "A scalable multi-node cluster for training jobs that auto-scales based on workload demand."}, {"module": 4, "moduleName": "Get Started with ML in Azure", "category": "Concept", "front": "What is Real-time Inference?", "back": "The model responds immediately to each request (e.g., chatbot responses), deployed as a live endpoint."}, {"module": 4, "moduleName": "Get Started with ML in Azure", "category": "Concept", "front": "What is Batch Inference?", "back": "The model processes large datasets on a schedule (e.g., overnight scoring of records), not instant responses."}, {"module": 4, "moduleName": "Get Started with ML in Azure", "category": "Concept", "front": "What is the ML Workflow?", "back": "Define problem \u2192 Get/prepare data \u2192 Train model \u2192 Evaluate model \u2192 Deploy model."}, {"module": 4, "moduleName": "Get Started with ML in Azure", "category": "Scenario", "front": "You need to predict demand nightly using historical data. What type of inference?", "back": "Batch inference \u2014 scheduled processing of large datasets."}, {"module": 4, "moduleName": "Get Started with ML in Azure", "category": "Exam Tip", "front": "What should you know about AutoML for the exam?", "back": "Know what AutoML does (automates algorithm selection and tuning) and when to use it. It is a frequent exam topic."}, {"module": 5, "moduleName": "Introduction to Generative AI and Agents", "category": "Key Term", "front": "What is Generative AI?", "back": "AI that creates new content including text, images, code, music, and audio based on learned patterns."}, {"module": 5, "moduleName": "Introduction to Generative AI and Agents", "category": "Key Term", "front": "What is a Large Language Model (LLM)?", "back": "A model trained on massive text data to understand and generate language by predicting the next token."}, {"module": 5, "moduleName": "Introduction to Generative AI and Agents", "category": "Key Term", "front": "What is a Token in the context of LLMs?", "back": "A subword unit processed by LLMs, approximately 4 characters each. Models read and generate tokens, not words."}, {"module": 5, "moduleName": "Introduction to Generative AI and Agents", "category": "Key Term", "front": "What is a Context Window?", "back": "The maximum number of tokens (input + output combined) a model can handle in a single interaction."}, {"module": 5, "moduleName": "Introduction to Generative AI and Agents", "category": "Key Term", "front": "What is Temperature in LLMs?", "back": "A parameter controlling output randomness: low temperature = focused/precise responses, high temperature = creative/varied responses."}, {"module": 5, "moduleName": "Introduction to Generative AI and Agents", "category": "Concept", "front": "What is Prompt Engineering?", "back": "The practice of carefully crafting prompts to get the best possible output from an AI model."}, {"module": 5, "moduleName": "Introduction to Generative AI and Agents", "category": "Key Term", "front": "What is a System Message?", "back": "Instructions that set the model's behavior, persona, tone, and constraints before user interaction begins."}, {"module": 5, "moduleName": "Introduction to Generative AI and Agents", "category": "Concept", "front": "What are Few-Shot Examples?", "back": "Including input/output examples in the prompt to demonstrate the desired format or style of response."}, {"module": 5, "moduleName": "Introduction to Generative AI and Agents", "category": "Concept", "front": "What is Grounding?", "back": "Connecting AI to real, verified data sources to reduce hallucination and improve factual accuracy."}, {"module": 5, "moduleName": "Introduction to Generative AI and Agents", "category": "Concept", "front": "What is RAG (Retrieval-Augmented Generation)?", "back": "A technique that retrieves relevant context from a knowledge source, then generates a response using that context. It is a specific implementation of grounding."}, {"module": 5, "moduleName": "Introduction to Generative AI and Agents", "category": "Key Term", "front": "What is Hallucination in AI?", "back": "When AI generates confident-sounding but factually incorrect or fabricated content."}, {"module": 5, "moduleName": "Introduction to Generative AI and Agents", "category": "Key Term", "front": "What is an AI Agent?", "back": "An autonomous system that plans, decides, uses tools, and takes actions to achieve goals without constant human direction."}, {"module": 5, "moduleName": "Introduction to Generative AI and Agents", "category": "Concept", "front": "What are the four components of an AI Agent?", "back": "Planning + Memory + Tools + Reflection. These enable autonomous goal-directed behavior."}, {"module": 5, "moduleName": "Introduction to Generative AI and Agents", "category": "Scenario", "front": "You want precise, factual responses from an LLM. What temperature setting should you use?", "back": "Use low temperature \u2014 it produces more focused, deterministic, and precise outputs."}, {"module": 5, "moduleName": "Introduction to Generative AI and Agents", "category": "Exam Tip", "front": "What is the difference between RAG and Grounding?", "back": "RAG is a specific technique that implements grounding. Grounding is the broader concept of connecting AI to verified data; RAG specifically retrieves then generates."}, {"module": 5, "moduleName": "Introduction to Generative AI and Agents", "category": "Exam Tip", "front": "Which exam domain has the highest weight?", "back": "Domain 5 (Generative AI) has the HIGHEST exam weight at 20\u201325%. Expect 8\u201315 questions on this topic."}, {"module": 6, "moduleName": "Get Started with Gen AI in Foundry", "category": "Azure Service", "front": "What is Azure OpenAI Service?", "back": "Microsoft-hosted access to OpenAI models with enterprise-grade security, compliance, and data privacy protections."}, {"module": 6, "moduleName": "Get Started with Gen AI in Foundry", "category": "Azure Service", "front": "What is the Model Catalog in Foundry?", "back": "A multi-provider model marketplace offering models from OpenAI, Meta, Mistral, Microsoft, and others."}, {"module": 6, "moduleName": "Get Started with Gen AI in Foundry", "category": "Concept", "front": "What is Content Filtering in Azure OpenAI?", "back": "Built-in safety screening for violence, hate, sexual content, and self-harm. It applies to both inputs AND outputs."}, {"module": 6, "moduleName": "Get Started with Gen AI in Foundry", "category": "Key Term", "front": "What is the Playground in Foundry?", "back": "An interactive prompt-testing environment where you can experiment with models without writing code."}, {"module": 6, "moduleName": "Get Started with Gen AI in Foundry", "category": "Concept", "front": "What is a Standard Deployment in Azure OpenAI?", "back": "Pay-per-token pricing with shared infrastructure, suitable for variable and unpredictable workloads."}, {"module": 6, "moduleName": "Get Started with Gen AI in Foundry", "category": "Concept", "front": "What is Provisioned Throughput in Azure OpenAI?", "back": "Reserved capacity with guaranteed performance, designed for high-volume, latency-sensitive workloads."}, {"module": 6, "moduleName": "Get Started with Gen AI in Foundry", "category": "Key Term", "front": "What is Observability in AI applications?", "back": "Monitoring AI app performance metrics including token usage, latency, error rates, and overall system health."}, {"module": 6, "moduleName": "Get Started with Gen AI in Foundry", "category": "Exam Tip", "front": "What are the four content filtering categories in Azure OpenAI?", "back": "Violence, Hate, Sexual content, and Self-harm. Filtering applies to both inputs and outputs."}, {"module": 6, "moduleName": "Get Started with Gen AI in Foundry", "category": "Exam Tip", "front": "Is Azure OpenAI data used to train OpenAI models?", "back": "No. Data processed by Azure OpenAI stays within Azure and is NOT used to train OpenAI's public models."}, {"module": 7, "moduleName": "Introduction to NLP Concepts", "category": "Key Term", "front": "What is Natural Language Processing (NLP)?", "back": "A field of AI enabling computers to understand, interpret, and generate human language."}, {"module": 7, "moduleName": "Introduction to NLP Concepts", "category": "Key Term", "front": "What is Tokenization in NLP?", "back": "Breaking text into individual processable units (tokens). It is the first step in most NLP pipelines."}, {"module": 7, "moduleName": "Introduction to NLP Concepts", "category": "Key Term", "front": "What is Stop Word Removal?", "back": "Filtering out common words with little semantic meaning (e.g., the, is, a, and) to focus on meaningful content."}, {"module": 7, "moduleName": "Introduction to NLP Concepts", "category": "Key Term", "front": "What is Stemming?", "back": "Reducing words to their root form by removing suffixes. It is fast but may produce non-real words (e.g., 'running' \u2192 'runn')."}, {"module": 7, "moduleName": "Introduction to NLP Concepts", "category": "Key Term", "front": "What is Lemmatization?", "back": "Reducing words to their dictionary form using linguistic rules. More accurate than stemming (e.g., 'running' \u2192 'run')."}, {"module": 7, "moduleName": "Introduction to NLP Concepts", "category": "Key Term", "front": "What are N-grams?", "back": "Sequences of N consecutive words used for text analysis. Bigram = 2 words, Trigram = 3 words."}, {"module": 7, "moduleName": "Introduction to NLP Concepts", "category": "Key Term", "front": "What is TF-IDF?", "back": "Term Frequency-Inverse Document Frequency \u2014 a statistical measure of how important a word is within a document relative to a collection."}, {"module": 7, "moduleName": "Introduction to NLP Concepts", "category": "Concept", "front": "What are Word Embeddings?", "back": "Representations of words as vectors in multi-dimensional space where similar meanings are positioned close together."}, {"module": 7, "moduleName": "Introduction to NLP Concepts", "category": "Key Term", "front": "What is Sentiment Analysis?", "back": "Determines the emotional tone of text: positive, negative, or neutral."}, {"module": 7, "moduleName": "Introduction to NLP Concepts", "category": "Key Term", "front": "What is Key Phrase Extraction?", "back": "Identifies the most important and representative phrases in a body of text."}, {"module": 7, "moduleName": "Introduction to NLP Concepts", "category": "Key Term", "front": "What is Named Entity Recognition (NER)?", "back": "Identifies and classifies named entities in text such as people, places, organizations, and dates."}, {"module": 7, "moduleName": "Introduction to NLP Concepts", "category": "Key Term", "front": "What is Language Detection?", "back": "Identifies which language a given text is written in, returning a language code and confidence score."}, {"module": 7, "moduleName": "Introduction to NLP Concepts", "category": "Scenario", "front": "You need to determine if customer reviews are positive or negative. Which NLP technique?", "back": "Sentiment Analysis \u2014 classifies text by emotional tone (positive, negative, neutral)."}, {"module": 7, "moduleName": "Introduction to NLP Concepts", "category": "Scenario", "front": "You need to find all company names mentioned in a document. Which NLP technique?", "back": "Named Entity Recognition (NER) \u2014 identifies organizations, people, places, and dates in text."}, {"module": 8, "moduleName": "Get Started with NLP in Foundry", "category": "Azure Service", "front": "What is Azure AI Language Service?", "back": "An umbrella service for text analysis including sentiment, key phrases, NER, language detection, and summarization."}, {"module": 8, "moduleName": "Get Started with NLP in Foundry", "category": "Concept", "front": "What is Question Answering in Azure AI Language?", "back": "An FAQ-style feature: you provide Q&A pairs or documents, and it matches user questions to the best answer."}, {"module": 8, "moduleName": "Get Started with NLP in Foundry", "category": "Concept", "front": "What is CLU (Conversational Language Understanding)?", "back": "A service that understands user intent from natural language utterances and extracts relevant entities."}, {"module": 8, "moduleName": "Get Started with NLP in Foundry", "category": "Key Term", "front": "What is an Utterance in CLU?", "back": "A phrase the user might say or type (e.g., 'Book a flight to London' or 'What's the weather today?')."}, {"module": 8, "moduleName": "Get Started with NLP in Foundry", "category": "Key Term", "front": "What is an Intent in CLU?", "back": "What the user wants to do (e.g., 'BookFlight', 'GetWeather'). The purpose behind the utterance."}, {"module": 8, "moduleName": "Get Started with NLP in Foundry", "category": "Key Term", "front": "What is an Entity in CLU?", "back": "A key detail within an utterance (e.g., destination = London, date = Friday). The specific data the system extracts."}, {"module": 8, "moduleName": "Get Started with NLP in Foundry", "category": "Azure Service", "front": "What is Azure Translator?", "back": "A service for real-time text translation supporting 100+ languages, including document translation."}, {"module": 8, "moduleName": "Get Started with NLP in Foundry", "category": "Exam Tip", "front": "What is the difference between Question Answering and CLU?", "back": "Question Answering is FAQ-style (matches questions to answers). CLU extracts intent and entities from natural language for conversational apps."}, {"module": 9, "moduleName": "Introduction to AI Speech Concepts", "category": "Key Term", "front": "What is Speech Recognition (STT)?", "back": "Converts spoken audio into written text (Speech-to-Text)."}, {"module": 9, "moduleName": "Introduction to AI Speech Concepts", "category": "Key Term", "front": "What is Speech Synthesis (TTS)?", "back": "Converts written text into natural-sounding spoken audio (Text-to-Speech)."}, {"module": 9, "moduleName": "Introduction to AI Speech Concepts", "category": "Key Term", "front": "What is an Acoustic Model?", "back": "Converts raw audio waveforms into phonetic representations that can be processed by the language model."}, {"module": 9, "moduleName": "Introduction to AI Speech Concepts", "category": "Key Term", "front": "What is a Language Model in speech?", "back": "Predicts the most likely word sequence from phonetic representations produced by the acoustic model."}, {"module": 9, "moduleName": "Introduction to AI Speech Concepts", "category": "Concept", "front": "What is Real-time Transcription?", "back": "Audio is transcribed as it is spoken \u2014 used for live captioning, voice assistants, and real-time subtitles."}, {"module": 9, "moduleName": "Introduction to AI Speech Concepts", "category": "Concept", "front": "What is Batch Transcription?", "back": "Audio files are submitted and transcribed asynchronously \u2014 used for recorded calls, meetings, and archives."}, {"module": 9, "moduleName": "Introduction to AI Speech Concepts", "category": "Key Term", "front": "What is Speaker Recognition?", "back": "Identifying or verifying who is speaking by analyzing unique voice characteristics and patterns."}, {"module": 9, "moduleName": "Introduction to AI Speech Concepts", "category": "Concept", "front": "What is Speech Translation?", "back": "Real-time spoken language translation combining STT + translation + TTS in a pipeline."}, {"module": 9, "moduleName": "Introduction to AI Speech Concepts", "category": "Key Term", "front": "What is SSML?", "back": "Speech Synthesis Markup Language \u2014 an XML format for controlling TTS voice, pitch, speed, pauses, and emphasis."}, {"module": 9, "moduleName": "Introduction to AI Speech Concepts", "category": "Exam Tip", "front": "Under which exam domain is Speech grouped?", "back": "Speech is grouped under Domain 4 (NLP features) for exam purposes, not as a separate domain."}, {"module": 10, "moduleName": "Get Started with Speech in Foundry", "category": "Azure Service", "front": "What is Azure AI Speech Service?", "back": "The Azure platform service providing all speech capabilities including STT, TTS, translation, and speaker recognition."}, {"module": 10, "moduleName": "Get Started with Speech in Foundry", "category": "Azure Service", "front": "What is the Speech-to-Text API?", "back": "An Azure API that transcribes audio in real time or from uploaded audio files into written text."}, {"module": 10, "moduleName": "Get Started with Speech in Foundry", "category": "Azure Service", "front": "What is the Text-to-Speech API?", "back": "An Azure API that generates natural-sounding audio from written text input."}, {"module": 10, "moduleName": "Get Started with Speech in Foundry", "category": "Key Term", "front": "What are Neural Voices?", "back": "AI-generated voices using deep neural networks that produce natural intonation, rhythm, and human-like speech."}, {"module": 10, "moduleName": "Get Started with Speech in Foundry", "category": "Scenario", "front": "You need to enable real-time spoken translation in multilingual meetings. Which capability?", "back": "Speech Translation \u2014 combines Speech-to-Text, translation, and Text-to-Speech in real time."}, {"module": 11, "moduleName": "Introduction to Computer Vision Concepts", "category": "Key Term", "front": "What is Computer Vision?", "back": "A field of AI that interprets and understands visual information from images and video."}, {"module": 11, "moduleName": "Introduction to Computer Vision Concepts", "category": "Concept", "front": "What is Image Classification?", "back": "Assigns a single label to an entire image (e.g., 'cat', 'dog', 'car'). One label per image."}, {"module": 11, "moduleName": "Introduction to Computer Vision Concepts", "category": "Concept", "front": "What is Object Detection?", "back": "Finds and locates multiple objects within an image using bounding boxes and class labels."}, {"module": 11, "moduleName": "Introduction to Computer Vision Concepts", "category": "Concept", "front": "What is Semantic Segmentation?", "back": "Classifies every single pixel in an image into a category, providing pixel-level understanding."}, {"module": 11, "moduleName": "Introduction to Computer Vision Concepts", "category": "Concept", "front": "What is Image Analysis?", "back": "Generates descriptions, tags, and captions for images using AI to understand visual content."}, {"module": 11, "moduleName": "Introduction to Computer Vision Concepts", "category": "Key Term", "front": "What is OCR (Optical Character Recognition)?", "back": "Extracts printed or handwritten text from images and scanned documents into machine-readable text."}, {"module": 11, "moduleName": "Introduction to Computer Vision Concepts", "category": "Concept", "front": "What is Facial Detection?", "back": "Detects faces in images and can analyze attributes such as age, emotion, glasses, and head pose."}, {"module": 11, "moduleName": "Introduction to Computer Vision Concepts", "category": "Key Term", "front": "What is a CNN (Convolutional Neural Network)?", "back": "A neural network using filters/kernels to detect image features like edges, textures, and shapes. The classic architecture for computer vision."}, {"module": 11, "moduleName": "Introduction to Computer Vision Concepts", "category": "Key Term", "front": "What is a Vision Transformer (ViT)?", "back": "Applies the transformer architecture to images by splitting them into patches and using self-attention mechanisms."}, {"module": 11, "moduleName": "Introduction to Computer Vision Concepts", "category": "Key Term", "front": "What is a Multimodal Model?", "back": "A model that works with both text and images simultaneously (e.g., GPT-4 Vision can analyze images and answer questions about them)."}, {"module": 11, "moduleName": "Introduction to Computer Vision Concepts", "category": "Key Term", "front": "What is a Diffusion Model?", "back": "An image generation model that starts from noise and refines it guided by a text prompt (e.g., DALL-E)."}, {"module": 11, "moduleName": "Introduction to Computer Vision Concepts", "category": "Scenario", "front": "A security camera system needs to detect and locate people and vehicles. Which CV task?", "back": "Object Detection \u2014 identifies and locates multiple objects with bounding boxes."}, {"module": 11, "moduleName": "Introduction to Computer Vision Concepts", "category": "Exam Tip", "front": "How do Classification, Detection, and Segmentation differ?", "back": "Classification = one label per image. Detection = bounding boxes around objects. Segmentation = pixel-level classification of entire image."}, {"module": 12, "moduleName": "Get Started with CV in Foundry", "category": "Azure Service", "front": "What is Azure AI Vision Service?", "back": "An umbrella service for computer vision: captioning, tagging, object detection, smart cropping, and OCR."}, {"module": 12, "moduleName": "Get Started with CV in Foundry", "category": "Azure Service", "front": "What is the Read API?", "back": "The primary OCR tool in Azure for extracting text from images, PDFs, and scanned documents."}, {"module": 12, "moduleName": "Get Started with CV in Foundry", "category": "Azure Service", "front": "What is Azure AI Face Service?", "back": "A service for face detection, verification (1:1), identification (1:many), and grouping of faces."}, {"module": 12, "moduleName": "Get Started with CV in Foundry", "category": "Concept", "front": "What is Face Verification?", "back": "Comparing two faces to check if they belong to the same person (1:1 matching)."}, {"module": 12, "moduleName": "Get Started with CV in Foundry", "category": "Concept", "front": "What is Face Identification?", "back": "Identifying a person from a group of known faces (1:many matching). Requires Microsoft approval due to responsible AI concerns."}, {"module": 12, "moduleName": "Get Started with CV in Foundry", "category": "Azure Service", "front": "What is Custom Vision?", "back": "A service to train custom image classification and object detection models using your own labeled images."}, {"module": 12, "moduleName": "Get Started with CV in Foundry", "category": "Exam Tip", "front": "What should you know about Face Identification for the exam?", "back": "Face Identification (1:many) requires Microsoft approval. This is a favorite responsible AI question on the exam."}, {"module": 13, "moduleName": "Introduction to AI-Powered Info Extraction", "category": "Concept", "front": "What is Information Extraction?", "back": "Pulling structured data from unstructured sources such as scanned documents, forms, and images."}, {"module": 13, "moduleName": "Introduction to AI-Powered Info Extraction", "category": "Concept", "front": "What is the difference between OCR and Document Intelligence?", "back": "OCR reads raw text from images. Document Intelligence extracts structured key-value pairs, tables, and fields from documents."}, {"module": 13, "moduleName": "Introduction to AI-Powered Info Extraction", "category": "Azure Service", "front": "What is Azure Document Intelligence?", "back": "A service that extracts structured information from documents (formerly called Form Recognizer)."}, {"module": 13, "moduleName": "Introduction to AI-Powered Info Extraction", "category": "Concept", "front": "What are Pre-built Models in Document Intelligence?", "back": "Ready-to-use extraction models for common document types: invoices, receipts, ID documents, business cards, and health insurance cards."}, {"module": 13, "moduleName": "Introduction to AI-Powered Info Extraction", "category": "Concept", "front": "What are Custom Models in Document Intelligence?", "back": "Models you train on your own specific document types for specialized extraction needs."}, {"module": 13, "moduleName": "Introduction to AI-Powered Info Extraction", "category": "Key Term", "front": "What is Knowledge Mining?", "back": "AI-powered discovery of insights across large document collections through indexing, enriching, and searching."}, {"module": 14, "moduleName": "Get Started with Info Extraction in Foundry", "category": "Azure Service", "front": "What is Azure AI Search?", "back": "A full-text search service with AI enrichment capabilities (formerly Azure Cognitive Search)."}, {"module": 14, "moduleName": "Get Started with Info Extraction in Foundry", "category": "Concept", "front": "What is the Knowledge Mining Pipeline?", "back": "A three-stage process: Ingest \u2192 Enrich \u2192 Explore."}, {"module": 14, "moduleName": "Get Started with Info Extraction in Foundry", "category": "Concept", "front": "What happens in the Ingest stage?", "back": "Data is pulled from sources such as Azure Blob Storage, SQL databases, and Cosmos DB."}, {"module": 14, "moduleName": "Get Started with Info Extraction in Foundry", "category": "Concept", "front": "What happens in the Enrich stage?", "back": "AI skillsets are applied: NER, key phrases, image analysis, OCR, sentiment analysis, and language detection."}, {"module": 14, "moduleName": "Get Started with Info Extraction in Foundry", "category": "Concept", "front": "What happens in the Explore stage?", "back": "Enriched data is stored in a search index and made searchable for users and applications."}, {"module": 14, "moduleName": "Get Started with Info Extraction in Foundry", "category": "Key Term", "front": "What is a Skillset in Azure AI Search?", "back": "A collection of AI skills that process and enrich data during the indexing pipeline."}, {"module": 14, "moduleName": "Get Started with Info Extraction in Foundry", "category": "Concept", "front": "What are Cognitive Skills?", "back": "Built-in enrichment capabilities: entity recognition, key phrases, language detection, sentiment analysis, and OCR."}, {"module": 14, "moduleName": "Get Started with Info Extraction in Foundry", "category": "Concept", "front": "What are Custom Skills?", "back": "User-defined enrichments that connect to custom APIs or Azure Functions for specialized processing."}, {"module": 14, "moduleName": "Get Started with Info Extraction in Foundry", "category": "Azure Service", "front": "What is Azure Content Understanding?", "back": "A multimodal extraction service for documents, images, audio, and video content."}, {"module": 14, "moduleName": "Get Started with Info Extraction in Foundry", "category": "Exam Tip", "front": "What Knowledge Mining concept is frequently tested?", "back": "The Knowledge Mining pipeline: Ingest \u2192 Enrich \u2192 Explore. Know each stage and what happens in it."}];
+
+const MODULES = {};
+ALL_CARDS.forEach(c => {
+  if(!MODULES[c.module]) MODULES[c.module] = {name:c.moduleName, cards:[]};
+  MODULES[c.module].cards.push(c);
+});
+const MODULE_IDS = Object.keys(MODULES).map(Number).sort((a,b)=>a-b);
+
+// ═══════════════════════════════════════
+// AUDIO (Web Audio API — tiny synth)
+// ═══════════════════════════════════════
+let audioCtx;
+function initAudio(){if(!audioCtx) audioCtx=new(window.AudioContext||window.webkitAudioContext)()}
+function playTone(freq,dur,type='sine',vol=0.12){
+  try{initAudio();const o=audioCtx.createOscillator(),g=audioCtx.createGain();
+  o.type=type;o.frequency.value=freq;g.gain.value=vol;
+  g.gain.exponentialRampToValueAtTime(0.001,audioCtx.currentTime+dur);
+  o.connect(g);g.connect(audioCtx.destination);o.start();o.stop(audioCtx.currentTime+dur)}catch(e){}
+}
+function sfxCorrect(){playTone(523,.08);setTimeout(()=>playTone(659,.08),80);setTimeout(()=>playTone(784,.15),160)}
+function sfxWrong(){playTone(200,.2,'sawtooth',0.08);setTimeout(()=>playTone(160,.25,'sawtooth',0.06),120)}
+function sfxStreak(){playTone(880,.06);setTimeout(()=>playTone(1047,.06),60);setTimeout(()=>playTone(1319,.12),120)}
+function sfxLevelUp(){playTone(523,.1);setTimeout(()=>playTone(659,.1),100);setTimeout(()=>playTone(784,.1),200);setTimeout(()=>playTone(1047,.2),300)}
+function sfxGameOver(){playTone(392,.15,'sawtooth',0.06);setTimeout(()=>playTone(330,.15,'sawtooth',0.06),150);setTimeout(()=>playTone(262,.3,'sawtooth',0.05),300)}
+function sfxTick(){playTone(1000,.03,'square',0.04)}
+
+// ═══════════════════════════════════════
+// PERSISTENT STATE
+// ═══════════════════════════════════════
+let player;
+function loadPlayer(){
+  try{const s=localStorage.getItem('ai900quest');if(s)player=JSON.parse(s)}catch(e){}
+  if(!player) player={xp:0,level:1,bestStreak:0,gamesPlayed:0,moduleProgress:{},totalCorrect:0,totalAnswered:0};
+}
+function savePlayer(){try{localStorage.setItem('ai900quest',JSON.stringify(player))}catch(e){}}
+function xpForLevel(lv){return 80+lv*40}
+function addXP(amount){
+  player.xp+=amount;
+  let needed=xpForLevel(player.level);
+  while(player.xp>=needed){player.xp-=needed;player.level++;needed=xpForLevel(player.level);showLevelUp(player.level)}
+  savePlayer();updateTitleStats();
+}
+
+// ═══════════════════════════════════════
+// GAME STATE
+// ═══════════════════════════════════════
+let mode='adventure'; // adventure|speed|survival
+let currentModule=1;
+let questions=[];
+let qIndex=0;
+let sessionCorrect=0;
+let sessionWrong=0;
+let streak=0;
+let bestSessionStreak=0;
+let sessionXP=0;
+let lives=3;
+let timerVal=60;
+let timerInterval=null;
+let answered=false;
+
+// ═══════════════════════════════════════
+// SCREENS
+// ═══════════════════════════════════════
+function showScreen(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  if(id==='titleScreen') updateTitleStats();
+}
+
+function updateTitleStats(){
+  document.getElementById('titleXP').textContent=player.xp+player.level*100;
+  document.getElementById('titleLvl').textContent=player.level;
+  document.getElementById('titleBest').textContent=player.bestStreak;
+  document.getElementById('titlePlayed').textContent=player.gamesPlayed;
+}
+
+// ═══════════════════════════════════════
+// QUESTION GENERATION
+// ═══════════════════════════════════════
+function generateQuestions(cardPool, count){
+  const shuffled=[...cardPool].sort(()=>Math.random()-.5);
+  const selected=shuffled.slice(0, Math.min(count, shuffled.length));
+  return selected.map(card=>{
+    // Get 3 wrong answers from same module first, then other modules
+    const sameModuleAnswers=cardPool.filter(c=>c!==card).map(c=>c.back);
+    const otherAnswers=ALL_CARDS.filter(c=>c!==card&&c.module!==card.module).map(c=>c.back);
+    const allDistractors=[...new Set([...sameModuleAnswers,...otherAnswers])];
+    const shuffledDist=allDistractors.sort(()=>Math.random()-.5);
+    const wrongAnswers=shuffledDist.slice(0,3);
+    // truncate long answers for display
+    const truncate=s=>s.length>140?s.substring(0,137)+'...':s;
+    const options=[truncate(card.back),...wrongAnswers.map(truncate)].sort(()=>Math.random()-.5);
+    return{
+      question:card.front,
+      correctAnswer:truncate(card.back),
+      options,
+      category:card.category,
+      module:card.module,
+      moduleName:card.moduleName
+    };
+  });
+}
+
+// ═══════════════════════════════════════
+// START MODES
+// ═══════════════════════════════════════
+function startAdventure(){
+  mode='adventure';
+  buildModuleGrid();
+  showScreen('moduleScreen');
+}
+
+function buildModuleGrid(){
+  const grid=document.getElementById('moduleGrid');
+  grid.innerHTML='';
+  MODULE_IDS.forEach(mid=>{
+    const m=MODULES[mid];
+    const prog=player.moduleProgress[mid]||{best:0,completed:false};
+    const pct=prog.best||0;
+    const completed=prog.completed;
+    const div=document.createElement('div');
+    div.className='module-btn'+(completed?' completed':'');
+    div.innerHTML=`<div class="m-num">${completed?'&#x2705; ':''} Zone ${mid}</div>
+      <div class="m-name">${m.name}</div>
+      <div class="m-prog">${m.cards.length} cards &bull; Best: ${pct}%</div>
+      <div class="m-bar"><div class="m-fill" style="width:${pct}%"></div></div>`;
+    div.onclick=()=>{currentModule=mid;launchAdventureModule(mid)};
+    grid.appendChild(div);
+  });
+}
+
+function launchAdventureModule(mid){
+  const pool=MODULES[mid].cards;
+  questions=generateQuestions(pool,pool.length);
+  resetSession();
+  lives=99;
+  document.getElementById('hudLivesArea').style.display='none';
+  document.getElementById('hudTimerArea').style.display='none';
+  launchGame();
+}
+
+function startSpeed(){
+  mode='speed';
+  questions=generateQuestions(ALL_CARDS,ALL_CARDS.length);
+  resetSession();
+  lives=99;
+  timerVal=60;
+  document.getElementById('hudLivesArea').style.display='none';
+  document.getElementById('hudTimerArea').style.display='block';
+  launchGame();
+  startTimer();
+}
+
+function startSurvival(){
+  mode='survival';
+  questions=generateQuestions(ALL_CARDS,ALL_CARDS.length);
+  resetSession();
+  lives=3;
+  document.getElementById('hudLivesArea').style.display='block';
+  document.getElementById('hudTimerArea').style.display='none';
+  updateLives();
+  launchGame();
+}
+
+function resetSession(){
+  qIndex=0;sessionCorrect=0;sessionWrong=0;streak=0;bestSessionStreak=0;sessionXP=0;answered=false;
+  if(timerInterval){clearInterval(timerInterval);timerInterval=null}
+}
+
+function launchGame(){
+  showScreen('gameScreen');
+  showQuestion();
+}
+
+// ═══════════════════════════════════════
+// TIMER (Speed mode)
+// ═══════════════════════════════════════
+function startTimer(){
+  updateTimerDisplay();
+  timerInterval=setInterval(()=>{
+    timerVal--;
+    updateTimerDisplay();
+    if(timerVal<=5&&timerVal>0) sfxTick();
+    if(timerVal<=0){clearInterval(timerInterval);timerInterval=null;endGame()}
+  },1000);
+}
+function updateTimerDisplay(){
+  const el=document.getElementById('hudTimer');
+  el.textContent=timerVal;
+  el.style.color=timerVal<=10?'var(--red)':'var(--cyan)';
+}
+
+// ═══════════════════════════════════════
+// SHOW QUESTION
+// ═══════════════════════════════════════
+function showQuestion(){
+  if(qIndex>=questions.length){endGame();return}
+  answered=false;
+  const q=questions[qIndex];
+  const catMap={'Key Term':'cat-keyterm','Concept':'cat-concept','Scenario':'cat-scenario','Exam Tip':'cat-examtip','Azure Service':'cat-azure'};
+  document.getElementById('qCategory').className='q-category '+(catMap[q.category]||'cat-keyterm');
+  document.getElementById('qCategory').textContent=q.category;
+  document.getElementById('qModule').textContent='Module '+q.module+' — '+q.moduleName;
+  document.getElementById('qText').textContent=q.question;
+  document.getElementById('qProgress').textContent='Question '+(qIndex+1)+' of '+questions.length;
+  const keys=['A','B','C','D'];
+  const area=document.getElementById('answersArea');
+  area.innerHTML='';
+  q.options.forEach((opt,i)=>{
+    const btn=document.createElement('button');
+    btn.className='answer-btn';
+    btn.innerHTML='<span class="a-key">'+keys[i]+'</span><span>'+escHtml(opt)+'</span>';
+    btn.onclick=()=>selectAnswer(btn,opt,q);
+    area.appendChild(btn);
+  });
+  document.getElementById('feedback').className='feedback';
+  document.getElementById('feedback').style.display='none';
+  document.getElementById('nextArea').style.display='none';
+  updateHUD();
+}
+
+function escHtml(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+
+// ═══════════════════════════════════════
+// ANSWER
+// ═══════════════════════════════════════
+function selectAnswer(btn,answer,q){
+  if(answered)return;
+  answered=true;
+  initAudio();
+  const correct=answer===q.correctAnswer;
+  const btns=document.querySelectorAll('.answer-btn');
+  btns.forEach(b=>{
+    b.classList.add('disabled');
+    if(b.querySelector('span:last-child').textContent===q.correctAnswer) b.classList.add('correct');
+  });
+
+  const fb=document.getElementById('feedback');
+  if(correct){
+    btn.classList.add('correct');
+    sessionCorrect++;
+    streak++;
+    if(streak>bestSessionStreak) bestSessionStreak=streak;
+    if(streak>player.bestStreak){player.bestStreak=streak;savePlayer()}
+    let xp=10;
+    if(streak>=3) xp=15;
+    if(streak>=5) xp=20;
+    if(streak>=10) xp=30;
+    if(mode==='speed') xp=Math.round(xp*1.5);
+    sessionXP+=xp;
+    fb.className='feedback show correct-fb';
+    fb.innerHTML='&#x2705; Correct! <span style="color:var(--gold)">+'+xp+' XP</span>';
+    sfxCorrect();
+    if(streak===3){showStreakPopup('&#x1F525; 3x Streak!');sfxStreak()}
+    else if(streak===5){showStreakPopup('&#x1F31F; 5x Streak!');sfxStreak()}
+    else if(streak===7){showStreakPopup('&#x1F4A5; 7x ON FIRE!');sfxStreak()}
+    else if(streak===10){showStreakPopup('&#x1F680; 10x UNSTOPPABLE!');sfxStreak()}
+    else if(streak>0&&streak%5===0){showStreakPopup('&#x1F525; '+streak+'x STREAK!');sfxStreak()}
+    spawnParticles(btn,'correct');
+    if(mode==='speed') timerVal+=3;
+  } else {
+    btn.classList.add('wrong');
+    sessionWrong++;
+    streak=0;
+    fb.className='feedback show wrong-fb';
+    fb.innerHTML='&#x274C; Incorrect<div class="fb-answer">'+escHtml(q.correctAnswer)+'</div>';
+    sfxWrong();
+    document.getElementById('gameBody').classList.add('shake');
+    setTimeout(()=>document.getElementById('gameBody').classList.remove('shake'),400);
+    if(mode==='survival'){
+      lives--;
+      updateLives();
+      if(lives<=0){setTimeout(()=>endGame(),1200);return}
+    }
+  }
+  player.totalCorrect+=correct?1:0;
+  player.totalAnswered++;
+  savePlayer();
+  updateHUD();
+
+  if(mode==='speed'){
+    setTimeout(()=>{qIndex++;showQuestion()},correct?800:1800);
+  }else{
+    document.getElementById('nextArea').style.display='block';
+    document.getElementById('nextBtn').focus();
+  }
+}
+
+function nextQuestion(){
+  qIndex++;
+  if(qIndex>=questions.length){endGame();return}
+  showQuestion();
+}
+
+// ═══════════════════════════════════════
+// HUD
+// ═══════════════════════════════════════
+function updateHUD(){
+  document.getElementById('hudXP').textContent=sessionXP;
+  document.getElementById('hudStreak').textContent=streak+'\u{1F525}';
+  document.getElementById('hudLevel').textContent='Lv'+player.level;
+  const pct=Math.round((player.xp/xpForLevel(player.level))*100);
+  document.getElementById('hudXPBar').style.width=pct+'%';
+}
+function updateLives(){
+  const h=document.getElementById('hudLives');
+  h.innerHTML='\u{2764}\uFE0F;'.repeat(lives)+'<span style="opacity:.2">\u{1F5A4}</span>'.repeat(Math.max(0,3-lives));
+}
+
+// ═══════════════════════════════════════
+// END GAME
+// ═══════════════════════════════════════
+function endGame(){
+  if(timerInterval){clearInterval(timerInterval);timerInterval=null}
+  addXP(sessionXP);
+  player.gamesPlayed++;
+
+  const total=sessionCorrect+sessionWrong;
+  const pct=total>0?Math.round((sessionCorrect/total)*100):0;
+
+  // Grade
+  let grade,gradeClass;
+  if(pct>=95){grade='S';gradeClass='grade-s'}
+  else if(pct>=80){grade='A';gradeClass='grade-a'}
+  else if(pct>=65){grade='B';gradeClass='grade-b'}
+  else if(pct>=50){grade='C';gradeClass='grade-c'}
+  else{grade='F';gradeClass='grade-f'}
+
+  // Module progress
+  if(mode==='adventure'){
+    if(!player.moduleProgress[currentModule]) player.moduleProgress[currentModule]={best:0,completed:false};
+    if(pct>player.moduleProgress[currentModule].best) player.moduleProgress[currentModule].best=pct;
+    if(pct>=70) player.moduleProgress[currentModule].completed=true;
+  }
+  savePlayer();
+
+  // Show results
+  document.getElementById('rTitle').textContent=
+    mode==='survival'&&lives<=0?'Game Over!':
+    mode==='speed'?'Time\'s Up!':'Round Complete!';
+  document.getElementById('rSub').textContent=
+    mode==='adventure'?'Adventure — Module '+currentModule:
+    mode==='speed'?'Speed Blitz':
+    'Survival — '+sessionCorrect+' survived';
+  const rg=document.getElementById('rGrade');
+  rg.textContent=grade;
+  rg.className='r-grade '+gradeClass;
+  document.getElementById('rCorrect').textContent=sessionCorrect;
+  document.getElementById('rWrong').textContent=sessionWrong;
+  document.getElementById('rStreak').textContent=bestSessionStreak;
+  document.getElementById('rXP').textContent='+'+sessionXP;
+
+  document.getElementById('rNext').style.display=mode==='adventure'?'inline-block':'none';
+
+  if(grade==='F') sfxGameOver();
+  else sfxCorrect();
+
+  showScreen('resultsScreen');
+}
+
+function retryRound(){
+  if(mode==='adventure') launchAdventureModule(currentModule);
+  else if(mode==='speed') startSpeed();
+  else startSurvival();
+}
+function nextZone(){
+  const idx=MODULE_IDS.indexOf(currentModule);
+  if(idx<MODULE_IDS.length-1){currentModule=MODULE_IDS[idx+1];launchAdventureModule(currentModule)}
+  else startAdventure();
+}
+
+// ═══════════════════════════════════════
+// EFFECTS
+// ═══════════════════════════════════════
+function showStreakPopup(text){
+  const el=document.getElementById('streakPopup');
+  el.innerHTML=text;
+  el.className='streak-popup';
+  void el.offsetWidth;
+  el.classList.add('show');
+}
+function showLevelUp(lv){
+  sfxLevelUp();
+  document.getElementById('lvUpNum').textContent=lv;
+  document.getElementById('levelUpOverlay').classList.add('show');
+  setTimeout(closeLevelUp,2200);
+}
+function closeLevelUp(){document.getElementById('levelUpOverlay').classList.remove('show')}
+
+function spawnParticles(el,type){
+  const rect=el.getBoundingClientRect();
+  const cx=rect.left+rect.width/2;
+  const cy=rect.top+rect.height/2;
+  const colors=type==='correct'?['#34d399','#6ee7b7','#a7f3d0','#fbbf24']:['#f87171','#fca5a5'];
+  for(let i=0;i<12;i++){
+    const p=document.createElement('div');
+    p.className='particle';
+    const size=Math.random()*6+3;
+    p.style.width=size+'px';p.style.height=size+'px';
+    p.style.background=colors[Math.floor(Math.random()*colors.length)];
+    p.style.left=cx+'px';p.style.top=cy+'px';
+    document.body.appendChild(p);
+    const angle=Math.random()*Math.PI*2;
+    const dist=Math.random()*80+40;
+    const dx=Math.cos(angle)*dist;
+    const dy=Math.sin(angle)*dist;
+    p.animate([
+      {transform:'translate(0,0) scale(1)',opacity:1},
+      {transform:`translate(${dx}px,${dy}px) scale(0)`,opacity:0}
+    ],{duration:600+Math.random()*300,easing:'cubic-bezier(.2,.6,.3,1)'});
+    setTimeout(()=>p.remove(),900);
+  }
+}
+
+// ═══════════════════════════════════════
+// KEYBOARD
+// ═══════════════════════════════════════
+document.addEventListener('keydown',e=>{
+  if(document.getElementById('gameScreen').classList.contains('active')){
+    const btns=document.querySelectorAll('.answer-btn:not(.disabled)');
+    if(e.key==='1'||e.key==='a'||e.key==='A') btns[0]?.click();
+    else if(e.key==='2'||e.key==='b'||e.key==='B') btns[1]?.click();
+    else if(e.key==='3'||e.key==='c'||e.key==='C') btns[2]?.click();
+    else if(e.key==='4'||e.key==='d'||e.key==='D') btns[3]?.click();
+    else if(e.key==='Enter'||e.key===' '){e.preventDefault();if(answered&&mode!=='speed')nextQuestion()}
+  }
+});
+
+// ═══════════════════════════════════════
+// BG CANVAS (floating particles)
+// ═══════════════════════════════════════
+(function(){
+  const c=document.getElementById('bgCanvas');
+  const ctx=c.getContext('2d');
+  let W,H;
+  function resize(){W=c.width=window.innerWidth;H=c.height=window.innerHeight}
+  resize();window.addEventListener('resize',resize);
+  const dots=[];
+  for(let i=0;i<50;i++) dots.push({x:Math.random()*2000,y:Math.random()*2000,r:Math.random()*1.5+.5,dx:(Math.random()-.5)*.3,dy:(Math.random()-.5)*.3,a:Math.random()*.15+.03});
+  function draw(){
+    ctx.clearRect(0,0,W,H);
+    dots.forEach(d=>{
+      d.x+=d.dx;d.y+=d.dy;
+      if(d.x<0)d.x=W;if(d.x>W)d.x=0;if(d.y<0)d.y=H;if(d.y>H)d.y=0;
+      ctx.beginPath();ctx.arc(d.x,d.y,d.r,0,Math.PI*2);
+      ctx.fillStyle=`rgba(99,102,241,${d.a})`;ctx.fill();
+    });
+    requestAnimationFrame(draw);
+  }
+  draw();
+})();
+
+// ═══════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════
+loadPlayer();
+updateTitleStats();
+</script>
+</body>
+</html>
