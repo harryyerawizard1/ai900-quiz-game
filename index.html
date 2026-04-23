@@ -352,9 +352,6 @@ function resetSave() {
 }
 
 // ---- 5. Your in‑memory game state ----
-let gameState = loadSave();
-
-// Example: call this when a module is completed
 function completeModule(moduleId, xpEarned) {
   if (!gameState.completedModules.includes(moduleId)) {
     gameState.completedModules.push(moduleId);
@@ -365,11 +362,11 @@ function completeModule(moduleId, xpEarned) {
     gameState.adventureUnlockedModules.push(moduleId + 1);
   }
 
-  // ⭐ reduce XP gain
-  const xpGain = Math.floor(xpEarned / 5);
+  // ⭐ reduce XP gain to match new leveling system
+  const xpGain = Math.floor(xpEarned / 5); 
   gameState.xp += xpGain;
 
-  // ⭐ leveling logic
+  // ⭐ level up logic
   const xpPerLevel = 100;
 
   while (gameState.xp >= xpPerLevel && gameState.level < 14) {
@@ -377,12 +374,13 @@ function completeModule(moduleId, xpEarned) {
     gameState.level++;
   }
 
+  // ⭐ prevent overflow past level 14
   if (gameState.level >= 14) {
     gameState.level = 14;
     gameState.xp = 0;
   }
 
-  // ⭐ SYNC Adventure Mode → Player Profile
+  // ⭐ Sync Adventure Mode → Player Profile
   player.xp = gameState.xp;
   player.level = gameState.level;
   savePlayer();
@@ -394,6 +392,7 @@ function completeModule(moduleId, xpEarned) {
   saveGame(gameState);
   renderUIFromState();
 }
+
 
 
 
