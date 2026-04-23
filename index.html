@@ -365,11 +365,11 @@ function completeModule(moduleId, xpEarned) {
     gameState.adventureUnlockedModules.push(moduleId + 1);
   }
 
-  // ⭐ reduce XP gain to match new leveling system
-  const xpGain = Math.floor(xpEarned / 5); // 80% reduction
+  // ⭐ reduce XP gain
+  const xpGain = Math.floor(xpEarned / 5);
   gameState.xp += xpGain;
 
-  // ⭐ level up logic (same as addXP)
+  // ⭐ leveling logic
   const xpPerLevel = 100;
 
   while (gameState.xp >= xpPerLevel && gameState.level < 14) {
@@ -377,11 +377,16 @@ function completeModule(moduleId, xpEarned) {
     gameState.level++;
   }
 
-  // ⭐ prevent overflow past level 14
   if (gameState.level >= 14) {
     gameState.level = 14;
     gameState.xp = 0;
   }
+
+  // ⭐ SYNC Adventure Mode → Player Profile
+  player.xp = gameState.xp;
+  player.level = gameState.level;
+  savePlayer();
+  updateTitleStats();
 
   gameState.lastModuleId = moduleId;
   gameState.lastMode = "adventure";
@@ -389,6 +394,7 @@ function completeModule(moduleId, xpEarned) {
   saveGame(gameState);
   renderUIFromState();
 }
+
 
 
 // ---- 6. Use state to drive your UI ----
