@@ -308,171 +308,22 @@ function sfxLevelUp(){playTone(523,.1);setTimeout(()=>playTone(659,.1),100);setT
 function sfxGameOver(){playTone(392,.15,'sawtooth',0.06);setTimeout(()=>playTone(330,.15,'sawtooth',0.06),150);setTimeout(()=>playTone(262,.3,'sawtooth',0.05),300)}
 function sfxTick(){playTone(1000,.03,'square',0.04)}
 
-<script>
-// A key just for your game
-const SAVE_KEY = "ai900_knowledge_quest_save_v1";
-
-// ---- 1. Default save data structure ----
-const defaultSave = {
-  adventureUnlockedModules: [1],   // module 1 unlocked by default
-  completedModules: [],            // e.g. [1,2,3]
-  xp: 0,
-  lastMode: "adventure",           // "adventure" | "blitz" | "survival"
-  lastModuleId: null
-};
-
-// ---- 2. Load save from LocalStorage ----
-function loadSave() {
-  try {
-    const raw = localStorage.getItem(SAVE_KEY);
-    if (!raw) return { ...defaultSave };
-    const data = JSON.parse(raw);
-    return { ...defaultSave, ...data }; // merge with defaults
-  } catch (e) {
-    console.warn("Save data corrupted, resetting.", e);
-    return { ...defaultSave };
-  }
-}
-
-// ---- 3. Save to LocalStorage ----
-function saveGame(state) {
-  try {
-    localStorage.setItem(SAVE_KEY, JSON.stringify(state));
-  } catch (e) {
-    console.warn("Could not save game.", e);
-  }
-}
-
-// ---- 4. Reset save ----
-function resetSave() {
-  localStorage.removeItem(SAVE_KEY);
-  gameState = { ...defaultSave };
-  // optionally refresh UI
-  renderUIFromState();
-}
-
-// ---- 5. Your in‑memory game state ----
-function completeModule(moduleId, xpEarned) {
-  if (!gameState.completedModules.includes(moduleId)) {
-    gameState.completedModules.push(moduleId);
-  }
-
-  // unlock next module
-  if (!gameState.adventureUnlockedModules.includes(moduleId + 1)) {
-    gameState.adventureUnlockedModules.push(moduleId + 1);
-  }
-
-  // ⭐ reduce XP gain to match new leveling system
-  const xpGain = Math.floor(xpEarned / 5); 
-  gameState.xp += xpGain;
-
-  // ⭐ level up logic
-  const xpPerLevel = 100;
-
-  while (gameState.xp >= xpPerLevel && gameState.level < 14) {
-    gameState.xp -= xpPerLevel;
-    gameState.level++;
-  }
-
-  // ⭐ prevent overflow past level 14
-  if (gameState.level >= 14) {
-    gameState.level = 14;
-    gameState.xp = 0;
-  }
-
-  // ⭐ Sync Adventure Mode → Player Profile
-  player.xp = gameState.xp;
-  player.level = gameState.level;
-  savePlayer();
-  updateTitleStats();
-
-  gameState.lastModuleId = moduleId;
-  gameState.lastMode = "adventure";
-
-  saveGame(gameState);
-  renderUIFromState();
-}
-
-
-
-
-// ---- 6. Use state to drive your UI ----
-function renderUIFromState() {
-  document.querySelectorAll(".module-button").forEach(btn => {
-    const id = parseInt(btn.dataset.module);
-    if (gameState.adventureUnlockedModules.includes(id)) {
-      btn.classList.remove("locked");
-    } else {
-      btn.classList.add("locked");
-    }
-  });
-}
-
-
-// Call once on page load
-document.addEventListener("DOMContentLoaded", () => {
-  gameState = loadSave();
-  renderUIFromState();
-});
 // ═══════════════════════════════════════
 // PERSISTENT STATE
 // ═══════════════════════════════════════
 let player;
 function loadPlayer(){
-  try {
-    const s = localStorage.getItem('ai900quest');
-    if (s) player = JSON.parse(s);
-  } catch(e){}
-
-  if (!player) {
-    player = {
-      xp: 0,
-      level: 1,
-      maxLevel: 14,          // ⭐ NEW — total level cap
-      bestStreak: 0,
-      gamesPlayed: 0,
-      moduleProgress: {},
-      totalCorrect: 0,
-      totalAnswered: 0
-    };
-  }
+  try{const s=localStorage.getItem('ai900quest');if(s)player=JSON.parse(s)}catch(e){}
+  if(!player) player={xp:0,level:1,bestStreak:0,gamesPlayed:0,moduleProgress:{},totalCorrect:0,totalAnswered:0};
 }
-
-function savePlayer(){
-  try {
-    localStorage.setItem('ai900quest', JSON.stringify(player));
-  } catch(e){}
-}
-
-// ⭐ NEW — simple predictable XP curve
-function xpForLevel(lv){
-  return 100; // every level requires 100 XP
-}
-
-// ⭐ NEW — reduced XP gain + level cap
+function savePlayer(){try{localStorage.setItem('ai900quest',JSON.stringify(player))}catch(e){}}
+function xpForLevel(lv){return 80+lv*40}
 function addXP(amount){
-  const xpGain = Math.floor(amount / 5); // 80% reduction
-  player.xp += xpGain;
-
-  let needed = xpForLevel(player.level);
-
-  while (player.xp >= needed && player.level < player.maxLevel) {
-    player.xp -= needed;
-    player.level++;
-    needed = xpForLevel(player.level);
-    showLevelUp(player.level);
-  }
-
-  // Prevent overflow past level 14
-  if (player.level >= player.maxLevel) {
-    player.level = player.maxLevel;
-    player.xp = 0;
-  }
-
-  savePlayer();
-  updateTitleStats();
+  player.xp+=amount;
+  let needed=xpForLevel(player.level);
+  while(player.xp>=needed){player.xp-=needed;player.level++;needed=xpForLevel(player.level);showLevelUp(player.level)}
+  savePlayer();updateTitleStats();
 }
-
 
 // ═══════════════════════════════════════
 // GAME STATE
